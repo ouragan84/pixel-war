@@ -16,7 +16,7 @@ const colorNum = 16;
 var pixelColor = Array(mapWidth).fill(0).map(x => Array(mapHeight).fill(0)); //[x,y] 0=white, 1=blue
 var selectedPixel = {x:-1,y:-1};
 var hoveringColor = -1;
-var isConnected = false;
+var hasConnected = false;
 
 var zoom = 1.0;
 const minZoom = 0.2;
@@ -36,7 +36,7 @@ function App() {
   const contextRef = useRef(null);
 
   const update = () => {
-    if(!isConnected)
+    if(!hasConnected)
       attemptConnection();
 
     if(windowDim.x !== window.innerWidth || windowDim.y !== window.innerHeight)
@@ -69,6 +69,7 @@ function App() {
 
   const attemptConnection = () => {
     console.log("attemptConnection called in App");
+    hasConnected = true;
     connect(updateGrid, connectionSuccess, connectionError);
   }
 
@@ -80,7 +81,7 @@ function App() {
 
   const connectionSuccess = () => {
     console.log("connectionSuccess called in App");
-    isConnected = true;
+    hasConnected = true;
     document.documentElement.style.setProperty('--showLoadScreen', "hidden");
     gridGet();
   }
