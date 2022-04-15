@@ -1,5 +1,7 @@
 :root{
   --showColorMenu: hidden;
+  --showLoadScreen: visible;
+  --showErrorScreen: hidden;
 }
 
 .App {
@@ -22,6 +24,33 @@
   margin:auto;
 }
 
+.loadScreen{
+  border:10px solid #000000;
+  background-color: #707070;
+  color: #ffffff;
+  position: absolute;
+  top: 20%;
+  bottom: 20%;
+  left: 20%;
+  right: 20%;
+  
+  visibility: var(--showLoadScreen);
+}
+
+.errorScreen{
+  border:10px solid #000000;
+  background-color: #8f1d1d;
+  color: #ffffff;
+  position: absolute;
+  top: 20%;
+  bottom: 20%;
+  left: 20%;
+  right: 20%;
+  
+  visibility: var(--showErrorScreen);
+}
+
+
 .colorChoice{
   border:4px solid #000000;
   background-color: #ffffff;
@@ -30,7 +59,6 @@
   left: 20%;
   right: 20%;
 
-  
   visibility: var(--showColorMenu);
 }
 

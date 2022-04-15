@@ -1,19 +1,22 @@
-import './App.css';
-import { useEffect, useRef, useState, useLayoutEffect } from 'react';
+import {pickColor} from './utils.js'
+import {connect, gridGet, gridPlace} from './connectionUtil.js'
+import './App.css'; 
+import { useEffect, useRef, useState, usseLayoutEffect } from 'react';
 
-const mapWidth = 50;
-const mapHeight = 50;
-const gridRatio = 0.01;
+var mapWidth = 0; var mapHeight = 0;
+
+const gridRatio = 0.01; const selectionOverlaySize = 0.05;
+
 const maxPanToSelect = 10.0;
 const frameRate = 30;
 const colorNum = 16;
-const selectionOverlaySize = 0.05;
 
 //and use window.innerWidth + window.innerHeight
 
 var pixelColor = Array(mapWidth).fill(0).map(x => Array(mapHeight).fill(0)); //[x,y] 0=white, 1=blue
 var selectedPixel = {x:-1,y:-1};
 var hoveringColor = -1;
+var isConnected = false;
 
 var zoom = 1.0;
 const minZoom = 0.2;
@@ -29,11 +32,13 @@ var centerOffset = {x:0, y:0};
 var windowDim = {x:0, y:0};
 
 function App() {
- 
   const canvasRef = useRef(null);
   const contextRef = useRef(null);
 
   const update = () => {
+    if(!isConnected)
+      attemptConnection();
+
     if(windowDim.x !== window.innerWidth || windowDim.y !== window.innerHeight)
       resizeWindow();
   }
@@ -58,8 +63,38 @@ function App() {
     const interval = setInterval(() => {
       update();
     }, 1000/frameRate);
+
     return () => clearInterval(interval);
   }, [])
+
+  const attemptConnection = () => {
+    console.log("attemptConnection called in App");
+    connect(updateGrid, connectionSuccess, connectionError);
+  }
+
+  const connectionError = () => {
+    console.log("connectionError called in App");
+    document.documentElement.style.setProperty('--showLoadScreen', "hidden");
+    document.documentElement.style.setProperty('--showErrorScreen', "visible");
+  }
+
+  const connectionSuccess = () => {
+    console.log("connectionSuccess called in App");
+    isConnected = true;
+    document.documentElement.style.setProperty('--showLoadScreen', "hidden");
+    gridGet();
+  }
+
+  const updateGrid = (data) => {
+    console.log("Grid is being updated");
+
+    mapWidth = data.width;
+    mapHeight = data.height;
+    pixelColor = data.grid.map(function(arr) {
+      return arr.slice();
+    });
+    renderCanvas();
+  }
 
   const renderCanvas = () => {
     contextRef.current.fillStyle = "#666666";
@@ -120,40 +155,17 @@ function App() {
     return {screenHeight, screenWidth};
   }
 
-  const pickColor = (index) => {
-    switch(index){
-      case 0: return "#f9ffff";//white
-      case 1: return "#9c9d97";//lgray
-      case 2: return "#474f52";//dgray
-      case 3: return "#1d1c21";//black
-      case 4: return "#ffd83d";//yellow
-      case 5: return "#f9801d";//orange
-      case 6: return "#b02e26";//red
-      case 7: return "#825432";//brown
-      case 8: return "#80c71f";//lime
-      case 9: return "#5d7c15";//green
-      case 10: return "#3ab3da";//lblue
-      case 11: return "#169c9d";//cyan
-      case 12: return "#3c44a9";//blue
-      case 13: return "#f38caa";//pink
-      case 14: return "#c64fbd";//magenta
-      case 15: return "#8932b7";//purple
-      default: return "#f9ffff";
-    }
-  }
-
   const selectPixel = (x, y, color) => {
+
     const {screenHeight, screenWidth} = getScreenDimentions();
     const pixelX = Math.floor(1.0*mapWidth/(screenWidth * zoom) * (x - centerOffset.x - (1.0*windowDim.x-screenWidth)/2));
     const pixelY = Math.floor(1.0*mapHeight/(screenHeight * zoom) * (y - centerOffset.y - (1.0*windowDim.y-screenHeight)/2));
 
     if(pixelX < 0 || pixelX >= mapWidth || pixelY < 0 || pixelY >= mapHeight){
-      console.log("pixel out of bound");
       selectedPixel.x = -1;
       selectedPixel.y = -1;
       showHideColorMenu(false);
     }else{
-      console.log("selected pixel (" + pixelX + ", " + pixelY + ")");
       // pixelColor[pixelX][pixelY] = color;
       selectedPixel.x = pixelX;
       selectedPixel.y = pixelY;
@@ -164,7 +176,8 @@ function App() {
   }
 
   const placePixel = (color) => {
-    pixelColor[selectedPixel.x][selectedPixel.y] = color;
+    gridPlace(selectedPixel.x, selectedPixel.y, color);
+
     selectedPixel.x = -1;
     selectedPixel.y = -1;
     showHideColorMenu(false);
@@ -172,8 +185,6 @@ function App() {
   }
 
   const showHideColorMenu = (show) => {
-
-    // disgusting, please change that later to show/hide colorPicking menu
     if(show){
       document.documentElement.style.setProperty('--showColorMenu', "visible");
     }else{
@@ -282,9 +293,19 @@ function App() {
     if(centerOffset.y < pixelSize*mapHeight/2 + zoom*panBound.minY*pixelSize*mapHeight) centerOffset.y = pixelSize*mapHeight/2 + zoom*panBound.minY*pixelSize*mapHeight;
   }
 
+  
+
   return (
     
     <div className="App">
+
+      <div className="loadScreen">
+        <h1>Loading ... </h1>
+      </div>
+
+      <div className="errorScreen">
+        <h1>There has been an error :(</h1>
+      </div>
 
       <div className="colorChoice">
         <b>Pick Color:</b>
@@ -305,17 +326,3 @@ function App() {
 }
 
 export default App;
-
-/*
-
-<canvas
-  onMouseDown={onClick}
-  onMouseUp={onRelease}
-  onMouseMove={panScreen}
-  onWheel={zoomScreen}
-  onMouseLeave={onExit}
-  ref={canvasRef}
-  id= "canvas"
-/>
-
-*/
