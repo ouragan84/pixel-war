@@ -1,20 +1,26 @@
-import React, { useEffect, useState } from 'react'
 import {over} from 'stompjs';
 import SockJS from 'sockjs-client';
 
-const _APIURL = "https://spring-pixel-war-no-db.herokuapp.com";
+const _APIURL = "https://pixel-war-api.herokuapp.com/"; //"https://pixel-war-api.herokuapp.com/" "http://localhost:8090"
+const connecEndPoint = "/connect";
+const requestGetEndPoint = "/grid/get";
+const requestPlaceEndPoint = "/app/grid/place";
+const subscribeEndPoint = "/topic/messages";
+
 const connectionAttemptsDelay = 2000;//ms
+var isConnected = false;
 
 var stompClient = null;
+
 var updateCallBack = () => {};
 var errorCallBack = () => {};
 var connectCallBack = () => {};
-var isConnected = false;
+
 
 export const connect = (updateCallBackFunc, connectCallBackFunc, errorCallBackFunc) => {
   console.log("Trying to connect to API ");
 
-  let Sock = new SockJS(_APIURL + '/connect');
+  let Sock = new SockJS(_APIURL + connecEndPoint);
   stompClient = over(Sock);
   stompClient.connect({}, onConnected, onError);
 
@@ -29,10 +35,27 @@ export const connect = (updateCallBackFunc, connectCallBackFunc, errorCallBackFu
   return () => clearInterval(interval);
 }
 
+
 export const gridGet = () => {
-  var message = {
-  };
-  stompClient.send("/app/grid/get", {}, JSON.stringify(message));
+  fetch(_APIURL + requestGetEndPoint)
+        .then(async response => {
+            const data = await response.json();
+
+            // check for error response
+            if (!response.ok) {
+                // get error message from body or default to response statusText
+                const error = (data && data.message) || response.statusText;
+                onError(error);
+                return;
+            }
+
+            onMessageReceived(data);
+        })
+        .catch(error => {
+            onError(error);
+        });
+
+        // gridPlace(0,0,1);
 }
 
 export const gridPlace = (x, y, color) => {
@@ -41,7 +64,7 @@ export const gridPlace = (x, y, color) => {
     y:y,
     color:color
   };
-  stompClient.send("/app/grid/place", {}, JSON.stringify(message));
+  stompClient.send(requestPlaceEndPoint, {}, JSON.stringify(message));
 }
 
 const reattemptConnection = () => {
@@ -51,27 +74,27 @@ const reattemptConnection = () => {
 }
 
 const onConnected = () => {
-  // setUserData({...userData,"connected": true});
   console.log("Connection Success");
 
   isConnected = true;
 
-  stompClient.subscribe('/topic/messages', onMessageReceived);
+  stompClient.subscribe(subscribeEndPoint, convertRecievedMessageToJSON);
   connectCallBack();
-  // userJoin();
+}
+
+const convertRecievedMessageToJSON = (payload) => {
+  onMessageReceived(JSON.parse(payload.body));
 }
 
 const onMessageReceived = (payload)=>{
-  var payloadData = JSON.parse(payload.body);
   console.log("Message Arrived");
+  // console.log(payloadData);
 
-  updateCallBack(payloadData);
+  updateCallBack(payload);
 }
 
 const onError = (err) => {
-  console.log("beep boop error :(");
-  console.log(err);
-
+  console.error("beep boop error :(", err);
   isConnected = false;
-  errorCallBack();
+  errorCallBack(err);
 }

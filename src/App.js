@@ -1,11 +1,11 @@
 import {pickColor} from './utils.js'
 import {connect, gridGet, gridPlace} from './connectionUtil.js'
 import './App.css'; 
-import { useEffect, useRef, useState, usseLayoutEffect } from 'react';
+import { useEffect, useRef} from 'react';
 
 var mapWidth = 0; var mapHeight = 0;
 
-const gridRatio = 0.01; const selectionOverlaySize = 0.05;
+const gridRatio = 0.01; const selectionOverlaySize = 0.05; const overFill = 0.4;
 
 const maxPanToSelect = 10.0;
 const frameRate = 30;
@@ -18,10 +18,11 @@ var selectedPixel = {x:-1,y:-1};
 var hoveringColor = -1;
 var hasConnected = false;
 
-var zoom = 1.0;
-const minZoom = 0.2;
-const maxZoom = 3.0;
+var zoom = 1.0;//absolute
+const minZoom = 0.4; //whole grid size, absolute
+const maxZoomPIS = 5.0; //pixels in grid, maxZoom calulated real time
 const zoomInterval = 1.1;
+const maxPIStoShowGrid = 30.0;
 
 var isClicked = false;
 var pannedDistance = 0.0;
@@ -73,7 +74,7 @@ function App() {
     connect(updateGrid, connectionSuccess, connectionError);
   }
 
-  const connectionError = () => {
+  const connectionError = (error) => {
     console.log("connectionError called in App");
     document.documentElement.style.setProperty('--showLoadScreen', "hidden");
     document.documentElement.style.setProperty('--showErrorScreen', "visible");
@@ -117,7 +118,11 @@ function App() {
         if(pixelY > windowDim.y || pixelY+pixelSize < 0) continue;
         
         contextRef.current.fillStyle = pickColor(pixelColor[i][j]);
-        contextRef.current.fillRect(pixelX + gridRatio*pixelSize, pixelY + gridRatio*pixelSize, (1-2*gridRatio)*pixelSize, (1-2*gridRatio)*pixelSize);
+
+        if(getZoomPIS() <= maxPIStoShowGrid)
+          contextRef.current.fillRect(pixelX + gridRatio*pixelSize, pixelY + gridRatio*pixelSize, (1-2*gridRatio)*pixelSize, (1-2*gridRatio)*pixelSize);
+        else
+          contextRef.current.fillRect(pixelX - overFill, pixelY - overFill, pixelSize + 2*overFill, pixelSize + 2*overFill);
 
         // console.log("filled pixel at x = " + i + ", y = " + j);
       }
@@ -256,15 +261,21 @@ function App() {
     renderCanvas();
   }
 
+  const getZoomPIS = () => {
+    return (1.0 * Math.max(Math.min(mapHeight, mapWidth), 1) / zoom);
+  }
+
   const zoomScreen = ({nativeEvent}) => {
     const {deltaY, offsetX, offsetY} = nativeEvent;
     const zoomInit = zoom;
     zoom *= Math.pow(zoomInterval, Math.sign(-deltaY));
 
+    const {screenHeight, screenWidth} = getScreenDimentions();
+
+    const maxZoom = 1.0 * Math.max(Math.min(mapHeight, mapWidth), 1) / maxZoomPIS;
+
     if(zoom > maxZoom)zoom = maxZoom;
     if(zoom < minZoom)zoom = minZoom;
-
-    const {screenHeight, screenWidth} = getScreenDimentions();
     
     const cornerX = (windowDim.x - screenWidth)/2 + centerOffset.x;
     const cornerY = (windowDim.y - screenHeight)/2 + centerOffset.y;
@@ -294,18 +305,22 @@ function App() {
     if(centerOffset.y < pixelSize*mapHeight/2 + zoom*panBound.minY*pixelSize*mapHeight) centerOffset.y = pixelSize*mapHeight/2 + zoom*panBound.minY*pixelSize*mapHeight;
   }
 
-  
+
 
   return (
     
     <div className="App">
 
       <div className="loadScreen">
+        <br/>
         <h1>Loading ... </h1>
       </div>
 
       <div className="errorScreen">
-        <h1>There has been an error :(</h1>
+        <br/>
+        <h1>ERROR: Could not Connect to Server :(</h1> <br/>
+        <h1>Try Refreshing the Page...</h1> <br/>
+        <h2>Or check your internet connection</h2> <br/>
       </div>
 
       <div className="colorChoice">
