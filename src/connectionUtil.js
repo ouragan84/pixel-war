@@ -41,22 +41,22 @@ export const connect = (fullUpdateCallBackFunc, pixelUpdateCallBackFunc, connect
 
 export const gridGet = () => {
   fetch(_APIURL + requestGetEndPoint)
-        .then(async response => {
-            const data = await response.json();
+  .then(async response => {
+    const data = await response.json();
 
-            // check for error response
-            if (!response.ok) {
-                // get error message from body or default to response statusText
-                const error = (data && data.message) || response.statusText;
-                onError(error);
-                return;
-            }
+    // check for error response
+    if (!response.ok) {
+      // get error message from body or default to response statusText
+      const error = (data && data.message) || response.statusText;
+      onError(error);
+      return;
+    }
 
-            onFullUpdateReceived(data);
-        })
-        .catch(error => {
-            onError(error);
-        });
+    onFullUpdateReceived(data);
+  })
+  .catch(error => {
+    onError(error);
+  });
 }
 
 export const gridPlace = (x, y, color) => {
@@ -66,6 +66,7 @@ export const gridPlace = (x, y, color) => {
     color:color
   };
   stompClient.send(requestPlaceEndPoint, {}, JSON.stringify(message));
+  pixelUpdateCallBack(message);
 }
 
 const reattemptConnection = () => {
