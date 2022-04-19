@@ -117,6 +117,35 @@ function App() {
     contextRef.current.fillStyle = "#666666";
     contextRef.current.fillRect(0,0, windowDim.x, windowDim.y);
 
+    // var imgData = contextRef.current.createImageData(windowDim.x, windowDim.y);
+
+    // console.log("heyy!");
+
+    // for(var x = 0; x < 100; ++x){
+    //   for(var y = 0; y < 100; ++y){
+    //     const thing = 4*(x + y*windowDim.x);
+    //     imgData.data[thing + 0] = 255;
+    //     imgData.data[thing + 1] = 0;
+    //     imgData.data[thing + 2] = 0;
+    //     imgData.data[thing + 3] = 255;
+        
+    //   }
+    // }
+
+    // var c = document.getElementById("myCanvas");
+    // var ctx = contextRef.current;
+    // var imgData = ctx.createImageData(100, 100);
+    // var i;
+    // for (i = 0; i < imgData.data.length; i += 4) {
+    //   imgData.data[i + 0] = 255;
+    //   imgData.data[i + 1] = 0;
+    //   imgData.data[i + 2] = 0;
+    //   imgData.data[i + 3] = 255;
+    // }
+    // ctx.putImageData(imgData, 10, 10);
+
+    // console.log(imgData);
+
     const {screenHeight, screenWidth} = getScreenDimentions();
     
     const pixelSize = 1.0*zoom*screenHeight / mapHeight;
@@ -136,8 +165,16 @@ function App() {
 
         if(getZoomPIS() <= maxPIStoShowGrid)
           contextRef.current.fillRect(pixelX + gridRatio*pixelSize, pixelY + gridRatio*pixelSize, (1-2*gridRatio)*pixelSize, (1-2*gridRatio)*pixelSize);
-        else
-          contextRef.current.fillRect(pixelX - overFill, pixelY - overFill, pixelSize + 2*overFill, pixelSize + 2*overFill);
+        else{
+          var num;
+          const col = pixelColor[i][j]
+
+          for(num = 0; num < mapWidth && pixelColor[i][j+num+1] === col; ++num);
+          j += num;
+
+          contextRef.current.fillRect(pixelX - overFill, pixelY - overFill, pixelSize + 2*overFill, pixelSize*(1+num) + 2*overFill);
+        }
+          
       }
     }
 
