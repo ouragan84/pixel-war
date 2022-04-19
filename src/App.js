@@ -2,27 +2,29 @@ import {pickColor} from './utils.js'
 import {connect, gridGet, gridPlace} from './connectionUtil.js'
 import './App.css'; 
 import { useEffect, useRef} from 'react';
+import { render } from '@testing-library/react';
 
-var mapWidth = 0; var mapHeight = 0;
-
-const gridRatio = 0.01; const selectionOverlaySize = 0.05; const overFill = 0.4;
+const gridRatio = 0.01; const hoveringOverlaySize = 0.05; const overFill = 0.4;
 
 const maxPanToSelect = 10.0;
 const frameRate = 30;
 const colorNum = 16;
 
-//and use window.innerWidth + window.innerHeight
-
-var pixelColor = Array(mapWidth).fill(0).map(x => Array(mapHeight).fill(0)); //[x,y] 0=white, 1=blue
-var selectedPixel = {x:-1,y:-1};
-var hoveringColor = -1;
-var hasConnected = false;
-
-var zoom = 1.0;//absolute
 const minZoom = 0.4; //whole grid size, absolute
 const maxZoomPIS = 5.0; //pixels in grid, maxZoom calulated real time
 const zoomInterval = 1.1;
 const maxPIStoShowGrid = 30.0;
+
+
+var mapWidth = 0; var mapHeight = 0;
+
+var pixelColor = Array(mapWidth).fill(0).map(x => Array(mapHeight).fill(0)); //[x,y] 0=white, 1=lgray, ... (see utils)
+
+var selectedColor = -1;
+var hasConnected = false;
+var hoveringPixel = {x:-1, y:-1};
+
+var zoom = 1.0;//absolute
 
 var isClicked = false;
 var pannedDistance = 0.0;
@@ -69,32 +71,43 @@ function App() {
   }, [])
 
   const attemptConnection = () => {
-    console.log("attemptConnection called in App");
+    // console.log("attemptConnection called in App");
     hasConnected = true;
-    connect(updateGrid, connectionSuccess, connectionError);
+    connect(updateGrid, updatePixel, connectionSuccess, connectionError);
   }
 
   const connectionError = (error) => {
-    console.log("connectionError called in App");
+    // console.log("connectionError called in App");
     document.documentElement.style.setProperty('--showLoadScreen', "hidden");
     document.documentElement.style.setProperty('--showErrorScreen', "visible");
   }
 
   const connectionSuccess = () => {
-    console.log("connectionSuccess called in App");
+    // console.log("connectionSuccess called in App");
     hasConnected = true;
     document.documentElement.style.setProperty('--showLoadScreen', "hidden");
+    document.documentElement.style.setProperty('--showErrorScreen', "hidden");
     gridGet();
   }
 
   const updateGrid = (data) => {
-    console.log("Grid is being updated");
+    // console.log("Grid is being updated");
 
     mapWidth = data.width;
     mapHeight = data.height;
     pixelColor = data.grid.map(function(arr) {
       return arr.slice();
     });
+    renderCanvas();
+  }
+
+  const updatePixel = (data) => {
+    // console.log(data.x, data.y, data.color);
+    changePixelColor(data.x, data.y, data.color);
+  }
+
+  const changePixelColor = (x, y, color) => {
+    pixelColor[x][y] = color;
     renderCanvas();
   }
 
@@ -123,30 +136,21 @@ function App() {
           contextRef.current.fillRect(pixelX + gridRatio*pixelSize, pixelY + gridRatio*pixelSize, (1-2*gridRatio)*pixelSize, (1-2*gridRatio)*pixelSize);
         else
           contextRef.current.fillRect(pixelX - overFill, pixelY - overFill, pixelSize + 2*overFill, pixelSize + 2*overFill);
-
-        // console.log("filled pixel at x = " + i + ", y = " + j);
       }
     }
 
-    if(selectedPixel.x < 0 || selectedPixel.y < 0 ) return;
+    if(hoveringPixel.x < 0 || hoveringPixel.y < 0 || hoveringPixel.x >= mapWidth || hoveringPixel.y >= mapHeight) return;
 
-    const selectedX = 1.0*screenWidth * zoom * selectedPixel.x / mapWidth + (windowDim.x - screenWidth)/2 + centerOffset.x;
-    const selectedY = 1.0*screenHeight * zoom * selectedPixel.y / mapHeight + (windowDim.y - screenHeight)/2 + centerOffset.y;
+    const hoverX = 1.0*screenWidth * zoom * hoveringPixel.x / mapWidth + (windowDim.x - screenWidth)/2 + centerOffset.x;
+    const hoverY = 1.0*screenHeight * zoom * hoveringPixel.y / mapHeight + (windowDim.y - screenHeight)/2 + centerOffset.y;
 
-    if(selectedX > windowDim.x || selectedX+pixelSize < 0 || selectedY > windowDim.y || selectedY+pixelSize < 0) return;
+    if(hoverX > windowDim.x || hoverX+pixelSize < 0 || hoverY > windowDim.y || hoverY+pixelSize < 0) return;
 
     contextRef.current.fillStyle = "#e8b61e";
-    contextRef.current.fillRect(selectedX - selectionOverlaySize*pixelSize, selectedY - selectionOverlaySize*pixelSize, (1+2*selectionOverlaySize)*pixelSize, (1+2*selectionOverlaySize)*pixelSize);
+    contextRef.current.fillRect(hoverX - hoveringOverlaySize*pixelSize, hoverY - hoveringOverlaySize*pixelSize, (1+2*hoveringOverlaySize)*pixelSize, (1+2*hoveringOverlaySize)*pixelSize);
 
-    if(hoveringColor < 0){
-      contextRef.current.fillStyle = pickColor(pixelColor[selectedPixel.x][selectedPixel.y]);
-    }else{
-      contextRef.current.fillStyle = pickColor(hoveringColor);
-    }
-    
-    contextRef.current.fillRect(selectedX + selectionOverlaySize*pixelSize, selectedY + selectionOverlaySize*pixelSize, (1-2*selectionOverlaySize)*pixelSize, (1-2*selectionOverlaySize)*pixelSize);
-
-    //contextRef.current.
+    contextRef.current.fillStyle = pickColor(pixelColor[hoveringPixel.x][hoveringPixel.y]);
+    contextRef.current.fillRect(hoverX + hoveringOverlaySize*pixelSize, hoverY + hoveringOverlaySize*pixelSize, (1-2*hoveringOverlaySize)*pixelSize, (1-2*hoveringOverlaySize)*pixelSize);
   }
 
   const getScreenDimentions = () => {
@@ -161,65 +165,73 @@ function App() {
     return {screenHeight, screenWidth};
   }
 
-  const selectPixel = (x, y, color) => {
-
+  const placePixel = (x, y) => {
     const {screenHeight, screenWidth} = getScreenDimentions();
     const pixelX = Math.floor(1.0*mapWidth/(screenWidth * zoom) * (x - centerOffset.x - (1.0*windowDim.x-screenWidth)/2));
     const pixelY = Math.floor(1.0*mapHeight/(screenHeight * zoom) * (y - centerOffset.y - (1.0*windowDim.y-screenHeight)/2));
 
     if(pixelX < 0 || pixelX >= mapWidth || pixelY < 0 || pixelY >= mapHeight){
-      selectedPixel.x = -1;
-      selectedPixel.y = -1;
-      showHideColorMenu(false);
-    }else{
-      // pixelColor[pixelX][pixelY] = color;
-      selectedPixel.x = pixelX;
-      selectedPixel.y = pixelY;
-      showHideColorMenu(true);
+      return;
     }
+
+    if(selectedColor < 0) return;
+    
+    gridPlace(pixelX, pixelY, selectedColor);
+  }
+
+  const updateMouseHovering = (mouseX, mouseY) => {
+    if(selectedColor < 0)return;
+
+    const {screenHeight, screenWidth} = getScreenDimentions();
+
+    const pixelX = Math.floor(1.0*mapWidth/(screenWidth * zoom) * (mouseX - centerOffset.x - (1.0*windowDim.x-screenWidth)/2));
+    const pixelY = Math.floor(1.0*mapHeight/(screenHeight * zoom) * (mouseY - centerOffset.y - (1.0*windowDim.y-screenHeight)/2));
+
+    if(pixelX === hoveringPixel.x && pixelY === hoveringPixel.y) return;
+
+    hoveringPixel.x = pixelX;
+    hoveringPixel.y = pixelY;
 
     renderCanvas();
   }
 
-  const placePixel = (color) => {
-    gridPlace(selectedPixel.x, selectedPixel.y, color);
-
-    selectedPixel.x = -1;
-    selectedPixel.y = -1;
-    showHideColorMenu(false);
-    setHoveringColor(-1);
-  }
-
-  const showHideColorMenu = (show) => {
-    if(show){
-      document.documentElement.style.setProperty('--showColorMenu', "visible");
-    }else{
-      document.documentElement.style.setProperty('--showColorMenu', "hidden");
-    }
-  }
-
-  const setHoveringColor = (col) => {
-    hoveringColor = col;
-    renderCanvas();
+  const selectColor = (color) => {
+    selectedColor = color;
   }
 
   const getColorButtons = () => {
     var buttons = [colorNum];
 
     for(var i = 0; i < colorNum; ++i){
-      const x = i;
-      buttons[i] = (
-        <button key={i} 
-          className= "colorButton"
-          onMouseEnter={() => {setHoveringColor(x)}} 
-          onMouseLeave={() => {setHoveringColor(-1)}} 
-          onClick={() => {placePixel(x)}} 
-          style={{backgroundColor: pickColor(i)}}>
-        </button>
-      );
+      buttons[i] = colorButton(i, false);
     }
 
     return buttons;
+  }
+
+  const onButtonClick = (i) => {
+    // const button = listButtons[i];
+    // Object.defineProperty(button.props.style,
+    //   'border', { value: "4px solid #dddddd" }
+    // );
+    selectColor(i)
+  }
+
+  const colorButton = (i, selected) => {
+
+    const button = (
+      <button key={i} 
+        className= "colorButton"
+        onClick = { () => {
+          onButtonClick(i)
+        }}
+        style = {{backgroundColor: pickColor(i)}} >
+      </button>
+    );
+
+    // Object.preventExtensions(button.props.style);
+
+    return button;
   }
 
   const listButtons = getColorButtons();
@@ -241,7 +253,7 @@ function App() {
     if(pannedDistance > maxPanToSelect) return;
     
     //select pixel
-    selectPixel(offsetX, offsetY, 1);
+    placePixel(offsetX, offsetY);
   }
 
   const onExit = ({nativeEvent}) => {
@@ -250,9 +262,12 @@ function App() {
   }
 
   const panScreen = ({nativeEvent}) => {
-    if(!isClicked) return;
 
     const {offsetX, offsetY} = nativeEvent;
+
+    updateMouseHovering(offsetX, offsetY);
+    
+    if(!isClicked) return;
 
     movePan(offsetX - previousMousePos.x, offsetY - previousMousePos.y);
     pannedDistance += Math.abs(offsetX - previousMousePos.x) + Math.abs(offsetY - previousMousePos.y);
@@ -267,6 +282,9 @@ function App() {
 
   const zoomScreen = ({nativeEvent}) => {
     const {deltaY, offsetX, offsetY} = nativeEvent;
+
+    updateMouseHovering(offsetX, offsetY);
+
     const zoomInit = zoom;
     zoom *= Math.pow(zoomInterval, Math.sign(-deltaY));
 
@@ -305,8 +323,6 @@ function App() {
     if(centerOffset.y < pixelSize*mapHeight/2 + zoom*panBound.minY*pixelSize*mapHeight) centerOffset.y = pixelSize*mapHeight/2 + zoom*panBound.minY*pixelSize*mapHeight;
   }
 
-
-
   return (
     
     <div className="App">
@@ -318,9 +334,9 @@ function App() {
 
       <div className="errorScreen">
         <br/>
-        <h1>ERROR: Could not Connect to Server :(</h1> <br/>
-        <h1>Try Refreshing the Page...</h1> <br/>
-        <h2>Or check your internet connection</h2> <br/>
+        <h1>Could not Connect to Server :(</h1> <br/>
+        <h1>Please try to Refreshing the Page a couple times</h1> <br/>
+        <h2>It may take a few seconds for the server to start up if it was asleep</h2> <br/>
       </div>
 
       <div className="colorChoice">

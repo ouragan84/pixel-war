@@ -5,26 +5,29 @@ const _APIURL = "https://pixel-war-api.herokuapp.com"; //"https://pixel-war-api.
 const connecEndPoint = "/connect";
 const requestGetEndPoint = "/grid/get";
 const requestPlaceEndPoint = "/app/grid/place";
-const subscribeEndPoint = "/topic/messages";
-
-const connectionAttemptsDelay = 2000;//ms
+const subscribePixelUpdateEndPoint = "/topic/pixel_update";
+const subscribeFullUpdateEndPoint = "/topic/full_update";
+const connectionAttemptsDelay = 2500;//ms
 var isConnected = false;
 
 var stompClient = null;
 
-var updateCallBack = () => {};
+var fullUpdateCallBack = () => {};
+var pixelUpdateCallBack = () => {};
 var errorCallBack = () => {};
 var connectCallBack = () => {};
 
 
-export const connect = (updateCallBackFunc, connectCallBackFunc, errorCallBackFunc) => {
-  console.log("Trying to connect to API ");
+export const connect = (fullUpdateCallBackFunc, pixelUpdateCallBackFunc, connectCallBackFunc, errorCallBackFunc) => {
+  // console.log("Trying to connect to API ");
 
   let Sock = new SockJS(_APIURL + connecEndPoint);
   stompClient = over(Sock);
+  stompClient.debug = f => f;
   stompClient.connect({}, onConnected, onError);
 
-  updateCallBack = updateCallBackFunc;
+  fullUpdateCallBack = fullUpdateCallBackFunc;
+  pixelUpdateCallBack = pixelUpdateCallBackFunc;
   errorCallBack = errorCallBackFunc;
   connectCallBack = connectCallBackFunc;
 
@@ -49,13 +52,11 @@ export const gridGet = () => {
                 return;
             }
 
-            onMessageReceived(data);
+            onFullUpdateReceived(data);
         })
         .catch(error => {
             onError(error);
         });
-
-        // gridPlace(0,0,1);
 }
 
 export const gridPlace = (x, y, color) => {
@@ -78,19 +79,33 @@ const onConnected = () => {
 
   isConnected = true;
 
-  stompClient.subscribe(subscribeEndPoint, convertRecievedMessageToJSON);
+  stompClient.subscribe(subscribeFullUpdateEndPoint, (payload) => {
+    onFullUpdateReceived(JSON.parse(payload.body));
+  });
+
+  stompClient.subscribe(subscribePixelUpdateEndPoint, (payload) => {
+    onPixelUpdateReceived(JSON.parse(payload.body));
+  });
+
   connectCallBack();
 }
 
-const convertRecievedMessageToJSON = (payload) => {
-  onMessageReceived(JSON.parse(payload.body));
+// const convertRecievedMessageToJSON = (payload) => {
+//   onMessageReceived(JSON.parse(payload.body));
+// }
+
+const onPixelUpdateReceived = (data)=>{
+  // console.log("Pixel Update Arrived");
+  // console.log(data);
+
+  pixelUpdateCallBack(data);
 }
 
-const onMessageReceived = (payload)=>{
-  console.log("Message Arrived");
-  // console.log(payloadData);
+const onFullUpdateReceived = (data)=>{
+  // console.log("Message Arrived");
+  // console.log(data);
 
-  updateCallBack(payload);
+  fullUpdateCallBack(data);
 }
 
 const onError = (err) => {

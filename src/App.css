@@ -1,5 +1,5 @@
 :root{
-  --showColorMenu: hidden;
+  /* --showColorMenu: hidden; */
   --showLoadScreen: visible;
   --showErrorScreen: hidden;
 }
@@ -59,7 +59,7 @@
   left: 20%;
   right: 20%;
 
-  visibility: var(--showColorMenu);
+  visibility: visible;
 }
 
 /*that might not be very responsive, change when possible*/

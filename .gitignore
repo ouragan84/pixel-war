@@ -11,6 +11,9 @@
 # production
 /build
 
+# manager
+/remote_grid_manager
+
 # misc
 .DS_Store
 .env.local
