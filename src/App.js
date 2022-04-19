@@ -1,7 +1,7 @@
 import {pickColor} from './utils.js'
 import {connect, gridGet, gridPlace} from './connectionUtil.js'
 import './App.css'; 
-import { useEffect, useRef} from 'react';
+import { useEffect, useRef, useState} from 'react';
 import { render } from '@testing-library/react';
 
 const gridRatio = 0.01; const hoveringOverlaySize = 0.05; const overFill = 0.4;
@@ -37,6 +37,8 @@ var windowDim = {x:0, y:0};
 function App() {
   const canvasRef = useRef(null);
   const contextRef = useRef(null);
+
+  // const [ ButtonBorder, setButttonBorder ] = useState('3px solid #000000');
 
   const update = () => {
     if(!hasConnected)
@@ -199,42 +201,47 @@ function App() {
     selectedColor = color;
   }
 
+  const getButtonStateList = () => {
+    var items = [];
+    for(var i = 0; i < colorNum; ++i)
+      items.push({id:i, border:'4px solid #000000'});
+    return items;
+  }
+
   const getColorButtons = () => {
     var buttons = [colorNum];
 
     for(var i = 0; i < colorNum; ++i){
-      buttons[i] = colorButton(i, false);
+      const x = i;
+      buttons[i] = (
+
+        <button key={x} 
+          className= "colorButton"
+          onClick = { () => {
+            onButtonClick(x);
+          }}
+          style = {{backgroundColor: pickColor(x), border: buttonState[x].border}} >
+        </button>
+
+      );
     }
 
     return buttons;
   }
 
-  const onButtonClick = (i) => {
-    // const button = listButtons[i];
-    // Object.defineProperty(button.props.style,
-    //   'border', { value: "4px solid #dddddd" }
-    // );
-    selectColor(i)
-  }
-
-  const colorButton = (i, selected) => {
-
-    const button = (
-      <button key={i} 
-        className= "colorButton"
-        onClick = { () => {
-          onButtonClick(i)
-        }}
-        style = {{backgroundColor: pickColor(i)}} >
-      </button>
-    );
-
-    // Object.preventExtensions(button.props.style);
-
-    return button;
-  }
-
+  const buttonStateList = getButtonStateList();
+  const [buttonState, SetButtonState] = useState(buttonStateList);
   const listButtons = getColorButtons();
+
+  const onButtonClick = (i) => {
+
+    var items = getButtonStateList();
+    items[i] = { id: i, border: '4px solid #ffb14a' }
+    
+    SetButtonState(items);
+    
+    selectColor(i);
+  }
 
   const onClick = ({nativeEvent}) => {
     const {offsetX, offsetY} = nativeEvent;
