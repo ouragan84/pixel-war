@@ -1,3 +1,10 @@
+# Try it out!
+
+[Play Here](https://pixel-war.netlify.app/).
+
+You may need to refresh a few times if no one connected in a while. This is because the server hosting the API shuts down after being inactive.
+Thank you for your understanding.
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
