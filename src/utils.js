@@ -1,3 +1,5 @@
+export const colorNum = 16;
+
 export const pickColor = (index) => {
   switch(index){
     case 0: return "#f9ffff";//white
@@ -20,4 +22,11 @@ export const pickColor = (index) => {
   }
 }
 
-  
+export const pickRGBColor = (index) => {
+  const colorStr = pickColor(index);
+  return [hexToDec(colorStr.substring(1,3)), hexToDec(colorStr.substring(3,5)), hexToDec(colorStr.substring(5,7))];
+}
+
+const hexToDec = (num) => {
+  return parseInt(num, 16);
+}

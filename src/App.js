@@ -1,23 +1,21 @@
-import {pickColor} from './utils.js'
+import {pickColor, pickRGBColor, colorNum} from './utils.js'
 import {connect, gridGet, gridPlace} from './connectionUtil.js'
 import './App.css'; 
 import { useEffect, useRef, useState} from 'react';
-import { render } from '@testing-library/react';
 
-const gridRatio = 0.01; const hoveringOverlaySize = 0.05; const overFill = 0.4;
+const gridRatio = 0.02; const hoveringOverlaySize = 0.05;
 
 const maxPanToSelect = 10.0;
 const frameRate = 30;
-const colorNum = 16;
 
 const minZoom = 0.4; //whole grid size, absolute
 const maxZoomPIS = 5.0; //pixels in grid, maxZoom calulated real time
 const zoomInterval = 1.1;
-const maxPIStoShowGrid = 30.0;
-
+const maxPIStoShowGrid = 40.0;
+const windowBackgroundColor = "#6f6f6f";
+const gridColor = windowBackgroundColor;
 
 var mapWidth = 0; var mapHeight = 0;
-
 var pixelColor = Array(mapWidth).fill(0).map(x => Array(mapHeight).fill(0)); //[x,y] 0=white, 1=lgray, ... (see utils)
 
 var selectedColor = -1;
@@ -34,11 +32,14 @@ var previousMousePos = {x:0, y:0};
 var centerOffset = {x:0, y:0};
 var windowDim = {x:0, y:0};
 
+var currentImage = new Image();
+var imgData;
+// var currentPixelTesselationInImage = 1;
+
+
 function App() {
   const canvasRef = useRef(null);
   const contextRef = useRef(null);
-
-  // const [ ButtonBorder, setButttonBorder ] = useState('3px solid #000000');
 
   const update = () => {
     if(!hasConnected)
@@ -57,6 +58,10 @@ function App() {
     windowDim.y = canvas.height;
 
     const context = canvasRef.current.getContext("2d");
+
+    context.webkitImageSmoothingEnabled = false;
+    context.mozImageSmoothingEnabled = false;
+    context.imageSmoothingEnabled = false;
     context.scale(1, 1);
     contextRef.current = context;
 
@@ -90,6 +95,7 @@ function App() {
     document.documentElement.style.setProperty('--showLoadScreen', "hidden");
     document.documentElement.style.setProperty('--showErrorScreen', "hidden");
     gridGet();
+    // gridPlace(0,0,0);
   }
 
   const updateGrid = (data) => {
@@ -100,84 +106,104 @@ function App() {
     pixelColor = data.grid.map(function(arr) {
       return arr.slice();
     });
+    // updateImageAtNextRender = true;
+    updateImage();
     renderCanvas();
   }
 
   const updatePixel = (data) => {
     // console.log(data.x, data.y, data.color);
+    // updateImageAtNextRender = true;
     changePixelColor(data.x, data.y, data.color);
   }
 
   const changePixelColor = (x, y, color) => {
     pixelColor[x][y] = color;
+    updateImageSinglePixel(x, y, color);
     renderCanvas();
   }
 
-  const renderCanvas = () => {
-    contextRef.current.fillStyle = "#666666";
-    contextRef.current.fillRect(0,0, windowDim.x, windowDim.y);
+  const updateImage = async () => {
+    // console.log("updating whole image");
 
-    // var imgData = contextRef.current.createImageData(windowDim.x, windowDim.y);
+    imgData = contextRef.current.createImageData(mapWidth, mapHeight);
 
-    // console.log("heyy!");
+    for(var x = 0; x < mapWidth; ++x){
 
-    // for(var x = 0; x < 100; ++x){
-    //   for(var y = 0; y < 100; ++y){
-    //     const thing = 4*(x + y*windowDim.x);
-    //     imgData.data[thing + 0] = 255;
-    //     imgData.data[thing + 1] = 0;
-    //     imgData.data[thing + 2] = 0;
-    //     imgData.data[thing + 3] = 255;
+      for(var y = 0; y < mapHeight; ++y){
+
+        const col = pickRGBColor(pixelColor[x][y]);
+        const index = 4*(x + y*mapWidth);
+
+        imgData.data[index + 0] = col[0];
+        imgData.data[index + 1] = col[1];
+        imgData.data[index + 2] = col[2];
+        imgData.data[index + 3] = 255;
         
-    //   }
-    // }
-
-    // var c = document.getElementById("myCanvas");
-    // var ctx = contextRef.current;
-    // var imgData = ctx.createImageData(100, 100);
-    // var i;
-    // for (i = 0; i < imgData.data.length; i += 4) {
-    //   imgData.data[i + 0] = 255;
-    //   imgData.data[i + 1] = 0;
-    //   imgData.data[i + 2] = 0;
-    //   imgData.data[i + 3] = 255;
-    // }
-    // ctx.putImageData(imgData, 10, 10);
-
-    // console.log(imgData);
-
-    const {screenHeight, screenWidth} = getScreenDimentions();
-    
-    const pixelSize = 1.0*zoom*screenHeight / mapHeight;
-
-    for(var i = 0; i < pixelColor.length; ++i){
-
-      const pixelX = 1.0*screenWidth * zoom * i / mapWidth + (windowDim.x - screenWidth)/2 + centerOffset.x;
-
-      if(pixelX > windowDim.x || pixelX+pixelSize < 0) continue;
-
-      for(var j = 0; j < pixelColor[i].length; ++j){
-        const pixelY = 1.0*screenHeight * zoom * j / mapHeight + (windowDim.y - screenHeight)/2 + centerOffset.y;
-
-        if(pixelY > windowDim.y || pixelY+pixelSize < 0) continue;
-        
-        contextRef.current.fillStyle = pickColor(pixelColor[i][j]);
-
-        if(getZoomPIS() <= maxPIStoShowGrid)
-          contextRef.current.fillRect(pixelX + gridRatio*pixelSize, pixelY + gridRatio*pixelSize, (1-2*gridRatio)*pixelSize, (1-2*gridRatio)*pixelSize);
-        else{
-          var num;
-          const col = pixelColor[i][j]
-
-          for(num = 0; num < mapWidth && pixelColor[i][j+num+1] === col; ++num);
-          j += num;
-
-          contextRef.current.fillRect(pixelX - overFill, pixelY - overFill, pixelSize + 2*overFill, pixelSize*(1+num) + 2*overFill);
-        }
-          
       }
     }
 
+    currentImage = await imagedata_to_image(imgData);
+
+    renderCanvas();
+  }
+
+  const updateImageSinglePixel = async (x, y, color) => {
+
+    // console.log("updating one pixel");
+
+    const index = 4*(x + y*mapWidth);
+    const col = pickRGBColor(color);
+    imgData.data[index + 0] = col[0];
+    imgData.data[index + 1] = col[1];
+    imgData.data[index + 2] = col[2];
+    imgData.data[index + 3] = 255;
+    currentImage = await imagedata_to_image(imgData);
+
+    renderCanvas();
+  }
+
+  const renderAsImage = (pixelSize, screenHeight, screenWidth) => {
+
+    contextRef.current.drawImage(currentImage, (windowDim.x - screenWidth)/2 + centerOffset.x, 
+      (windowDim.y - screenHeight)/2 + centerOffset.y, 
+      mapWidth*pixelSize, mapHeight*pixelSize);
+  }
+
+  const renderGrid = (pixelSize, screenHeight, screenWidth) => {
+    if(getZoomPIS() > maxPIStoShowGrid) return;
+
+    contextRef.current.fillStyle = gridColor;
+
+    const minX = Math.max(0, (windowDim.x - screenWidth)/2 + centerOffset.x);
+    const maxX = Math.min(1.0*screenWidth * zoom + (windowDim.x - screenWidth)/2 + centerOffset.x, windowDim.x);
+    const minY = Math.max(0, (windowDim.y - screenHeight)/2 + centerOffset.y);
+    const maxY = Math.min(1.0*screenHeight * zoom + (windowDim.y - screenHeight)/2 + centerOffset.y, windowDim.y);
+
+    const minPixelX = Math.floor(1.0*mapWidth/(screenWidth * zoom) * (minX - centerOffset.x - (1.0*windowDim.x-screenWidth)/2));
+    const maxPixelX = Math.ceil(1.0*mapWidth/(screenWidth * zoom) * (maxX + 1 - centerOffset.x - (1.0*windowDim.x-screenWidth)/2));
+    const minPixelY = Math.floor(1.0*mapHeight/(screenHeight * zoom) * (minY - centerOffset.y - (1.0*windowDim.y-screenHeight)/2));
+    const maxPixelY = Math.ceil(1.0*mapHeight/(screenHeight * zoom) * (maxY + 1 - centerOffset.y - (1.0*windowDim.y-screenHeight)/2));
+
+    console.log("min: ", minPixelX, ", max: ", maxPixelX);
+
+    // contextRef.current.fillRect(0, minY, 100, 5);
+    // contextRef.current.fillRect(0, maxY-5, 100, 5);
+    // contextRef.current.fillRect(minX, 0, 5, 100);
+    // contextRef.current.fillRect(maxX-5, 0, 5, 100);
+
+    for(var x = minPixelX; x < maxPixelX; ++x){
+      const coordX = 1.0*screenWidth * zoom * x / mapWidth + (windowDim.x - screenWidth)/2 + centerOffset.x - 0.5*gridRatio;
+      contextRef.current.fillRect(coordX, minY, gridRatio*pixelSize, maxY-minY);
+    }
+
+    for(var y = minPixelY; y < maxPixelY; ++y){
+      const coordY = 1.0*screenHeight * zoom * y / mapHeight + (windowDim.y - screenHeight)/2 + centerOffset.y - 0.5*gridRatio;
+      contextRef.current.fillRect(minX, coordY, maxX-minX, gridRatio*pixelSize);
+    }
+  }
+
+  const renderCursor = (pixelSize, screenWidth, screenHeight) => {
     if(hoveringPixel.x < 0 || hoveringPixel.y < 0 || hoveringPixel.x >= mapWidth || hoveringPixel.y >= mapHeight) return;
 
     const hoverX = 1.0*screenWidth * zoom * hoveringPixel.x / mapWidth + (windowDim.x - screenWidth)/2 + centerOffset.x;
@@ -191,6 +217,62 @@ function App() {
     contextRef.current.fillStyle = pickColor(pixelColor[hoveringPixel.x][hoveringPixel.y]);
     contextRef.current.fillRect(hoverX + hoveringOverlaySize*pixelSize, hoverY + hoveringOverlaySize*pixelSize, (1-2*hoveringOverlaySize)*pixelSize, (1-2*hoveringOverlaySize)*pixelSize);
   }
+
+  // const renderAsRects = (pixelSize, screenHeight, screenWidth) => {
+
+  //   for(var i = 0; i < pixelColor.length; ++i){
+  //     const pixelX = 1.0*screenWidth * zoom * i / mapWidth + (windowDim.x - screenWidth)/2 + centerOffset.x;
+
+  //     if(pixelX > windowDim.x || pixelX+pixelSize < 0) continue;
+
+  //     for(var j = 0; j < pixelColor[i].length; ++j){
+  //       const pixelY = 1.0*screenHeight * zoom * j / mapHeight + (windowDim.y - screenHeight)/2 + centerOffset.y;
+
+  //       if(pixelY > windowDim.y || pixelY+pixelSize < 0) continue;
+        
+  //       contextRef.current.fillStyle = pickColor(pixelColor[i][j]);
+
+  //       if(getZoomPIS() <= maxPIStoShowGrid)
+  //         contextRef.current.fillRect(pixelX + gridRatio*pixelSize, pixelY + gridRatio*pixelSize, (1-2*gridRatio)*pixelSize, (1-2*gridRatio)*pixelSize);
+  //       else{
+  //         var num;
+  //         const col = pixelColor[i][j]
+
+  //         for(num = 0; num < mapWidth && pixelColor[i][j+num+1] === col; ++num);
+  //         j += num;
+
+  //         contextRef.current.fillRect(pixelX - overFill, pixelY - overFill, pixelSize + 2*overFill, pixelSize*(1+num) + 2*overFill);
+  //       }
+          
+  //     }
+  //   }
+  // }
+
+  const renderCanvas = async () => {
+    contextRef.current.fillStyle = windowBackgroundColor;
+    contextRef.current.fillRect(0,0, windowDim.x, windowDim.y);
+
+    if(mapWidth < 1 || mapHeight < 1) return;
+
+    const {screenHeight, screenWidth} = getScreenDimentions();
+    const pixelSize = 1.0*zoom*screenHeight / mapHeight;
+
+    renderAsImage(pixelSize, screenHeight, screenWidth);
+    renderGrid(pixelSize, screenHeight, screenWidth);
+    renderCursor(pixelSize, screenHeight, screenWidth);
+  }
+
+  const imagedata_to_image = async (imagedata) => {
+    var canvas = document.createElement('canvas');
+    var ctx = canvas.getContext('2d');
+    canvas.width = imagedata.width;
+    canvas.height = imagedata.height;
+    ctx.putImageData(imagedata, 0, 0);
+
+    var image = new Image();
+    image.src = canvas.toDataURL();
+    return image;
+}
 
   const getScreenDimentions = () => {
     var screenHeight, screenWidth;

@@ -38,7 +38,6 @@ export const connect = (fullUpdateCallBackFunc, pixelUpdateCallBackFunc, connect
   return () => clearInterval(interval);
 }
 
-
 export const gridGet = () => {
   fetch(_APIURL + requestGetEndPoint)
   .then(async response => {
