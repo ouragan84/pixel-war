@@ -1,7 +1,7 @@
 import {over} from 'stompjs';
 import SockJS from 'sockjs-client';
 
-const _APIURL = "https://pixel-war-api.herokuapp.com"; //"https://pixel-war-api.herokuapp.com" "http://localhost:8090"
+const _APIURL = "http://localhost:8090"; //"https://pixel-war-api.herokuapp.com" "http://localhost:8090"
 const connecEndPoint = "/connect";
 const requestGetEndPoint = "/grid/get";
 const requestPlaceEndPoint = "/app/grid/place";

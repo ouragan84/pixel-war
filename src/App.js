@@ -78,28 +78,23 @@ function App() {
   }, [])
 
   const attemptConnection = () => {
-    // console.log("attemptConnection called in App");
     hasConnected = true;
     connect(updateGrid, updatePixel, connectionSuccess, connectionError);
   }
 
   const connectionError = (error) => {
-    // console.log("connectionError called in App");
     document.documentElement.style.setProperty('--showLoadScreen', "hidden");
     document.documentElement.style.setProperty('--showErrorScreen', "visible");
   }
 
   const connectionSuccess = () => {
-    // console.log("connectionSuccess called in App");
     hasConnected = true;
     document.documentElement.style.setProperty('--showLoadScreen', "hidden");
     document.documentElement.style.setProperty('--showErrorScreen', "hidden");
     gridGet();
-    // gridPlace(0,0,0);
   }
 
   const updateGrid = (data) => {
-    // console.log("Grid is being updated");
 
     mapWidth = data.width;
     mapHeight = data.height;
@@ -112,7 +107,6 @@ function App() {
   }
 
   const updatePixel = (data) => {
-    // console.log(data.x, data.y, data.color);
     // updateImageAtNextRender = true;
     changePixelColor(data.x, data.y, data.color);
   }
@@ -124,7 +118,6 @@ function App() {
   }
 
   const updateImage = async () => {
-    // console.log("updating whole image");
 
     imgData = contextRef.current.createImageData(mapWidth, mapHeight);
 
@@ -149,8 +142,6 @@ function App() {
   }
 
   const updateImageSinglePixel = async (x, y, color) => {
-
-    // console.log("updating one pixel");
 
     const index = 4*(x + y*mapWidth);
     const col = pickRGBColor(color);
@@ -184,8 +175,6 @@ function App() {
     const maxPixelX = Math.ceil(1.0*mapWidth/(screenWidth * zoom) * (maxX + 1 - centerOffset.x - (1.0*windowDim.x-screenWidth)/2));
     const minPixelY = Math.floor(1.0*mapHeight/(screenHeight * zoom) * (minY - centerOffset.y - (1.0*windowDim.y-screenHeight)/2));
     const maxPixelY = Math.ceil(1.0*mapHeight/(screenHeight * zoom) * (maxY + 1 - centerOffset.y - (1.0*windowDim.y-screenHeight)/2));
-
-    console.log("min: ", minPixelX, ", max: ", maxPixelX);
 
     // contextRef.current.fillRect(0, minY, 100, 5);
     // contextRef.current.fillRect(0, maxY-5, 100, 5);
@@ -374,7 +363,6 @@ function App() {
   const onRelease = ({nativeEvent}) => {
     const {offsetX, offsetY} = nativeEvent;
     isClicked = false;
-    // console.log("distance panned = " + pannedDistance);
 
     if(pannedDistance > maxPanToSelect) return;
     
