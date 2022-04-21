@@ -1,6 +1,6 @@
 # Try it out!
 
-[Play Here](https://pixel-war.netlify.app/).
+[Play Here](https://pixel-war.netlify.app/)
 
 You may need to refresh a few times if no one connected in a while. This is because the server hosting the API shuts down after being inactive.
 Thank you for your understanding.
