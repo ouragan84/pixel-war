@@ -5,6 +5,8 @@
 You may need to refresh a few times if no one connected in a while. This is because the server hosting the API shuts down after being inactive.
 Thank you for your understanding.
 
+Feel free to check out the API in Java spring boot also on my github.
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
